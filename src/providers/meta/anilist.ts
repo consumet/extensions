@@ -332,6 +332,7 @@ class Anilist extends AnimeParser {
       let { data, status } = await this.client.post('', options, {
         validateStatus: () => true,
       });
+      let enimeInfo = {};
 
       if (status == 404)
         throw new Error('Media not found. Perhaps the id is invalid or the anime is not in anilist');
@@ -342,6 +343,15 @@ class Anilist extends AnimeParser {
       if (status >= 500) data = await new Enime().fetchAnimeInfoByIdRaw(id);
 
       animeInfo.malId = data.data?.Media?.idMal ?? data?.mappings!['mal'];
+      try {
+        enimeInfo = await new Enime().fetchAnimeInfoByAnilistId(
+          id,
+          this.provider.name.toLowerCase() as 'gogoanime' | 'zoro'
+        );
+        animeInfo.mappings = enimeInfo.mappings;
+      } catch (err) {
+        console.log(err);
+      }
       animeInfo.title = data.data.Media
         ? {
             romaji: data.data.Media.title.romaji,
@@ -517,11 +527,6 @@ class Anilist extends AnimeParser {
           range({ from: 2000, to: new Date().getFullYear() + 1 }).includes(parseInt(animeInfo.releaseDate!)))
       ) {
         try {
-          const enimeInfo = await new Enime().fetchAnimeInfoByAnilistId(
-            id,
-            this.provider.name.toLowerCase() as 'gogoanime' | 'zoro'
-          );
-          animeInfo.mappings = enimeInfo.mappings;
           animeInfo.episodes = enimeInfo.episodes?.map((item: any) => ({
             id: item.slug,
             title: item.title,
