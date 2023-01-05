@@ -146,19 +146,28 @@ class Gogoanime extends models_1.AnimeParser {
                         return {
                             headers: { Referer: serverUrl.href },
                             sources: await new extractors_1.GogoCDN().extract(serverUrl),
+<<<<<<< HEAD
+=======
                             download: `https://gogohd.net/download${serverUrl.search}`,
+>>>>>>> c3497c83b28d7379f76180556bf10ea5a3ffb73c
                         };
                     case models_1.StreamingServers.StreamSB:
                         return {
                             headers: { Referer: serverUrl.href, watchsb: 'streamsb', 'User-Agent': utils_1.USER_AGENT },
                             sources: await new extractors_1.StreamSB().extract(serverUrl),
+<<<<<<< HEAD
+=======
                             download: `https://gogohd.net/download${serverUrl.search}`,
+>>>>>>> c3497c83b28d7379f76180556bf10ea5a3ffb73c
                         };
                     default:
                         return {
                             headers: { Referer: serverUrl.href },
                             sources: await new extractors_1.GogoCDN().extract(serverUrl),
+<<<<<<< HEAD
+=======
                             download: `https://gogohd.net/download${serverUrl.search}`,
+>>>>>>> c3497c83b28d7379f76180556bf10ea5a3ffb73c
                         };
                 }
             }

@@ -126,12 +126,20 @@ const compareTwoStrings = (first, second) => {
 };
 exports.compareTwoStrings = compareTwoStrings;
 const substringAfter = (str, toFind) => {
+<<<<<<< HEAD
+    let index = str.indexOf(toFind);
+=======
     const index = str.indexOf(toFind);
+>>>>>>> c3497c83b28d7379f76180556bf10ea5a3ffb73c
     return index == -1 ? '' : str.substring(index + toFind.length);
 };
 exports.substringAfter = substringAfter;
 const substringBefore = (str, toFind) => {
+<<<<<<< HEAD
+    let index = str.indexOf(toFind);
+=======
     const index = str.indexOf(toFind);
+>>>>>>> c3497c83b28d7379f76180556bf10ea5a3ffb73c
     return index == -1 ? '' : str.substring(0, index);
 };
 exports.substringBefore = substringBefore;
