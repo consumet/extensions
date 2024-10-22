@@ -1,4 +1,10 @@
-import { AnimeParser, ISearch, IAnimeInfo, IAnimeResult, ISource, IEpisodeServer, StreamingServers, IAnimeEpisode } from '../../models';
+import { AnimeParser, IAnimeEpisode, IAnimeInfo, IAnimeResult, IEpisodeServer, ISearch, ISource, StreamingServers } from '../../models';
+interface IExtendedSource extends ISource {
+    server?: string;
+    quality?: string;
+    intro?: any;
+    outro?: any;
+}
 declare class Zoro extends AnimeParser {
     readonly name = "Zoro";
     protected baseUrl: string;
@@ -98,7 +104,6 @@ declare class Zoro extends AnimeParser {
      *
      * @param episodeId Episode id
      */
-    fetchEpisodeSources: (episodeId: string, server?: StreamingServers) => Promise<ISource>;
     private verifyLoginState;
     private retrieveServerId;
     /**
@@ -110,9 +115,10 @@ declare class Zoro extends AnimeParser {
      */
     private scrapeCard;
     /**
-     * @deprecated
      * @param episodeId Episode id
      */
-    fetchEpisodeServers: (episodeId: string) => Promise<IEpisodeServer[]>;
+    fetchEpisodeServers(episodeId: string, category?: 'sub' | 'dub'): Promise<IEpisodeServer[]>;
+    fetchEpisodeSources(episodeId: string, server?: StreamingServers, category?: 'sub' | 'dub'): Promise<IExtendedSource>;
+    private extractSource;
 }
 export default Zoro;

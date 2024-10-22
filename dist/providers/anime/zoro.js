@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const cheerio_1 = require("cheerio");
 const models_1 = require("../../models");
 const utils_1 = require("../../utils");
-const utils_2 = require("../../utils");
 class Zoro extends models_1.AnimeParser {
     constructor(customBaseURL) {
         super(...arguments);
@@ -99,92 +98,91 @@ class Zoro extends models_1.AnimeParser {
          *
          * @param episodeId Episode id
          */
-        this.fetchEpisodeSources = async (episodeId, server = models_1.StreamingServers.VidCloud) => {
-            var _a;
-            if (episodeId.startsWith('http')) {
-                const serverUrl = new URL(episodeId);
-                switch (server) {
-                    case models_1.StreamingServers.VidStreaming:
-                    case models_1.StreamingServers.VidCloud:
-                        return {
-                            ...(await new utils_1.MegaCloud().extract(serverUrl)),
-                        };
-                    case models_1.StreamingServers.StreamSB:
-                        return {
-                            headers: {
-                                Referer: serverUrl.href,
-                                watchsb: 'streamsb',
-                                'User-Agent': utils_2.USER_AGENT,
-                            },
-                            sources: await new utils_1.StreamSB(this.proxyConfig, this.adapter).extract(serverUrl, true),
-                        };
-                    case models_1.StreamingServers.StreamTape:
-                        return {
-                            headers: { Referer: serverUrl.href, 'User-Agent': utils_2.USER_AGENT },
-                            sources: await new utils_1.StreamTape(this.proxyConfig, this.adapter).extract(serverUrl),
-                        };
-                    default:
-                    case models_1.StreamingServers.VidCloud:
-                        return {
-                            headers: { Referer: serverUrl.href },
-                            ...(await new utils_1.MegaCloud().extract(serverUrl)),
-                        };
-                }
-            }
-            if (!episodeId.includes('$episode$'))
-                throw new Error('Invalid episode id');
-            // Fallback to using sub if no info found in case of compatibility
-            // TODO: add both options later
-            const subOrDub = ((_a = episodeId.split('$')) === null || _a === void 0 ? void 0 : _a.pop()) === 'dub' ? 'dub' : 'sub';
-            episodeId = `${this.baseUrl}/watch/${episodeId
-                .replace('$episode$', '?ep=')
-                .replace(/\$auto|\$sub|\$dub/gi, '')}`;
-            try {
-                const { data } = await this.client.get(`${this.baseUrl}/ajax/v2/episode/servers?episodeId=${episodeId.split('?ep=')[1]}`);
-                const $ = (0, cheerio_1.load)(data.html);
-                /**
-                 * vidtreaming -> 4
-                 * rapidcloud  -> 1
-                 * streamsb -> 5
-                 * streamtape -> 3
-                 */
-                let serverId = '';
-                try {
-                    switch (server) {
-                        case models_1.StreamingServers.VidCloud:
-                            serverId = this.retrieveServerId($, 1, subOrDub);
-                            // zoro's vidcloud server is rapidcloud
-                            if (!serverId)
-                                throw new Error('RapidCloud not found');
-                            break;
-                        case models_1.StreamingServers.VidStreaming:
-                            serverId = this.retrieveServerId($, 4, subOrDub);
-                            // zoro's vidcloud server is rapidcloud
-                            if (!serverId)
-                                throw new Error('vidtreaming not found');
-                            break;
-                        case models_1.StreamingServers.StreamSB:
-                            serverId = this.retrieveServerId($, 5, subOrDub);
-                            if (!serverId)
-                                throw new Error('StreamSB not found');
-                            break;
-                        case models_1.StreamingServers.StreamTape:
-                            serverId = this.retrieveServerId($, 3, subOrDub);
-                            if (!serverId)
-                                throw new Error('StreamTape not found');
-                            break;
-                    }
-                }
-                catch (err) {
-                    throw new Error("Couldn't find server. Try another server");
-                }
-                const { data: { link }, } = await this.client.get(`${this.baseUrl}/ajax/v2/episode/sources?id=${serverId}`);
-                return await this.fetchEpisodeSources(link, server);
-            }
-            catch (err) {
-                throw err;
-            }
-        };
+        // override fetchEpisodeSources = async (
+        //   episodeId: string,
+        //   server: StreamingServers = StreamingServers.VidCloud
+        // ): Promise<ISource> => {
+        //   if (episodeId.startsWith('http')) {
+        //     const serverUrl = new URL(episodeId);
+        //     switch (server) {
+        //       case StreamingServers.VidStreaming:
+        //       case StreamingServers.VidCloud:
+        //         return {
+        //           ...(await new MegaCloud().extract(serverUrl)),
+        //         };
+        //       case StreamingServers.StreamSB:
+        //         return {
+        //           headers: {
+        //             Referer: serverUrl.href,
+        //             watchsb: 'streamsb',
+        //             'User-Agent': USER_AGENT,
+        //           },
+        //           sources: await new StreamSB(this.proxyConfig, this.adapter).extract(serverUrl, true),
+        //         };
+        //       case StreamingServers.StreamTape:
+        //         return {
+        //           headers: { Referer: serverUrl.href, 'User-Agent': USER_AGENT },
+        //           sources: await new StreamTape(this.proxyConfig, this.adapter).extract(serverUrl),
+        //         };
+        //       default:
+        //       case StreamingServers.VidCloud:
+        //         return {
+        //           headers: { Referer: serverUrl.href },
+        //           ...(await new MegaCloud().extract(serverUrl)),
+        //         };
+        //     }
+        //   }
+        //   if (!episodeId.includes('$episode$')) throw new Error('Invalid episode id');
+        //   // Fallback to using sub if no info found in case of compatibility
+        //   // TODO: add both options later
+        //   const subOrDub: 'sub' | 'dub' = episodeId.split('$')?.pop() === 'dub' ? 'dub' : 'sub';
+        //   episodeId = `${this.baseUrl}/watch/${episodeId
+        //     .replace('$episode$', '?ep=')
+        //     .replace(/\$auto|\$sub|\$dub/gi, '')}`;
+        //   try {
+        //     const { data } = await this.client.get(
+        //       `${this.baseUrl}/ajax/v2/episode/servers?episodeId=${episodeId.split('?ep=')[1]}`
+        //     );
+        //     const $ = load(data.html);
+        //     /**
+        //      * vidtreaming -> 4
+        //      * rapidcloud  -> 1
+        //      * streamsb -> 5
+        //      * streamtape -> 3
+        //      */
+        //     let serverId = '';
+        //     try {
+        //       switch (server) {
+        //         case StreamingServers.VidCloud:
+        //           serverId = this.retrieveServerId($, 1, subOrDub);
+        //           // zoro's vidcloud server is rapidcloud
+        //           if (!serverId) throw new Error('RapidCloud not found');
+        //           break;
+        //         case StreamingServers.VidStreaming:
+        //           serverId = this.retrieveServerId($, 4, subOrDub);
+        //           // zoro's vidcloud server is rapidcloud
+        //           if (!serverId) throw new Error('vidtreaming not found');
+        //           break;
+        //         case StreamingServers.StreamSB:
+        //           serverId = this.retrieveServerId($, 5, subOrDub);
+        //           if (!serverId) throw new Error('StreamSB not found');
+        //           break;
+        //         case StreamingServers.StreamTape:
+        //           serverId = this.retrieveServerId($, 3, subOrDub);
+        //           if (!serverId) throw new Error('StreamTape not found');
+        //           break;
+        //       }
+        //     } catch (err) {
+        //       throw new Error("Couldn't find server. Try another server");
+        //     }
+        //     const {
+        //       data: { link },
+        //     } = await this.client.get(`${this.baseUrl}/ajax/v2/episode/sources?id=${serverId}`);
+        //     return await this.fetchEpisodeSources(link, server);
+        //   } catch (err) {
+        //     throw err;
+        //   }
+        // };
         this.verifyLoginState = async (connectSid) => {
             try {
                 const { data } = await this.client.get(`${this.baseUrl}/ajax/login-state`, {
@@ -275,13 +273,6 @@ class Zoro extends models_1.AnimeParser {
             catch (err) {
                 throw new Error('Something went wrong. Please try again later.');
             }
-        };
-        /**
-         * @deprecated
-         * @param episodeId Episode id
-         */
-        this.fetchEpisodeServers = (episodeId) => {
-            throw new Error('Method not implemented.');
         };
         if (customBaseURL) {
             if (customBaseURL.startsWith('http://') || customBaseURL.startsWith('https://')) {
@@ -622,13 +613,132 @@ class Zoro extends models_1.AnimeParser {
             throw new Error(err.message);
         }
     }
+    /**
+     * @param episodeId Episode id
+     */
+    fetchEpisodeServers(episodeId, category = 'sub') {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const servers = [];
+                const response = await this.client.get(`${this.baseUrl}/ajax/v2/episode/servers?episodeId=${episodeId}`);
+                if (typeof response.data === 'object' && response.data.html) {
+                    const $ = (0, cheerio_1.load)(response.data.html);
+                    $(`.servers-${category} .server-item`).each((_, el) => {
+                        const server = $(el);
+                        servers.push({
+                            name: server.find('a').text().trim(),
+                            url: `${this.baseUrl}/ajax/v2/episode/sources?id=${server.attr('data-id')}`,
+                        });
+                    });
+                }
+                else {
+                    throw new Error('Unexpected response format');
+                }
+                if (servers.length === 0) {
+                    throw new Error(`No servers found for episode ${episodeId}`);
+                }
+                resolve(servers);
+            }
+            catch (err) {
+                reject(new Error(`Failed to fetch episode servers: ${err.message}`));
+            }
+        });
+    }
+    fetchEpisodeSources(episodeId, server = models_1.StreamingServers.VidStreaming, category = 'sub') {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const servers = await this.fetchEpisodeServers(episodeId, category);
+                let selectedServer;
+                switch (server) {
+                    case models_1.StreamingServers.VidStreaming:
+                        selectedServer = servers.find(s => s.name === 'HD-1');
+                        break;
+                    case models_1.StreamingServers.VidCloud:
+                        selectedServer = servers.find(s => s.name === 'HD-2');
+                        break;
+                    case models_1.StreamingServers.StreamSB:
+                        selectedServer = servers.find(s => s.name === 'StreamSB');
+                        break;
+                    case models_1.StreamingServers.StreamTape:
+                        selectedServer = servers.find(s => s.name === 'StreamTape');
+                        break;
+                    default:
+                        selectedServer = servers.find(s => s.name === 'HD-1'); // Default to HD-1
+                }
+                if (!selectedServer) {
+                    throw new Error(`Server ${server} not found`);
+                }
+                const { data } = await this.client.get(selectedServer.url);
+                if (!data.link) {
+                    throw new Error('No source link found');
+                }
+                const source = await this.extractSource(data.link, server);
+                // Add server name to the source
+                source.server = selectedServer.name;
+                // Add quality information if available
+                if (data.quality) {
+                    source.quality = data.quality;
+                }
+                // Handle intro/outro information
+                if (data.intro) {
+                    source.intro = data.intro;
+                }
+                if (data.outro) {
+                    source.outro = data.outro;
+                }
+                resolve(source);
+            }
+            catch (err) {
+                reject(new Error(`Failed to fetch episode sources: ${err.message}`));
+            }
+        });
+    }
+    async extractSource(url, server) {
+        const serverUrl = new URL(url);
+        switch (server) {
+            case models_1.StreamingServers.VidStreaming:
+            case models_1.StreamingServers.VidCloud:
+                return {
+                    ...(await new utils_1.MegaCloud().extract(serverUrl)),
+                };
+            case models_1.StreamingServers.StreamSB:
+                return {
+                    headers: {
+                        Referer: serverUrl.href,
+                        watchsb: 'streamsb',
+                        'User-Agent': utils_1.USER_AGENT,
+                    },
+                    sources: await new utils_1.StreamSB(this.proxyConfig, this.adapter).extract(serverUrl, true),
+                };
+            case models_1.StreamingServers.StreamTape:
+                return {
+                    headers: { Referer: serverUrl.href, 'User-Agent': utils_1.USER_AGENT },
+                    sources: await new utils_1.StreamTape(this.proxyConfig, this.adapter).extract(serverUrl),
+                };
+            default:
+                throw new Error('Invalid server specified');
+        }
+    }
 }
-// (async () => {
-//   const zoro = new Zoro();
-//   const anime = await zoro.search('classroom of the elite');
-//   const info = await zoro.fetchAnimeInfo(anime.results[0].id);
-//   const sources = await zoro.fetchEpisodeSources(info.episodes![0].id);
-//   console.log(sources);
-// })();
+// Test function
+(async () => {
+    try {
+        const zoro = new Zoro();
+        const episodeId = '230';
+        const categories = ['sub', 'dub'];
+        for (const category of categories) {
+            console.log(`\nTesting ${category.toUpperCase()} version:`);
+            console.log(`Fetching servers for episode ID: ${episodeId}`);
+            const servers = await zoro.fetchEpisodeServers(episodeId, category);
+            console.log('Episode servers:', servers);
+            console.log(`\nFetching sources for episode ID: ${episodeId}`);
+            const sources = await zoro.fetchEpisodeSources(episodeId, models_1.StreamingServers.VidStreaming, category);
+            console.log('Episode sources:', JSON.stringify(sources, null, 2));
+        }
+    }
+    catch (error) {
+        console.error('Error:', error.message);
+    }
+})();
 exports.default = Zoro;
 //# sourceMappingURL=zoro.js.map
