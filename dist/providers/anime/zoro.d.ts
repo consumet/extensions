@@ -4,6 +4,10 @@ interface IExtendedSource extends ISource {
     quality?: string;
     intro?: any;
     outro?: any;
+    category?: 'sub' | 'dub' | 'raw';
+}
+interface IExtendedEpisodeServer extends IEpisodeServer {
+    category?: 'sub' | 'dub' | 'raw';
 }
 declare class Zoro extends AnimeParser {
     readonly name = "Zoro";
@@ -117,8 +121,9 @@ declare class Zoro extends AnimeParser {
     /**
      * @param episodeId Episode id
      */
-    fetchEpisodeServers(episodeId: string, category?: 'sub' | 'dub'): Promise<IEpisodeServer[]>;
-    fetchEpisodeSources(episodeId: string, server?: StreamingServers, category?: 'sub' | 'dub'): Promise<IExtendedSource>;
+    fetchEpisodeServers(episodeId: string, category?: 'sub' | 'dub' | 'raw'): Promise<IExtendedEpisodeServer[]>;
+    fetchEpisodeSources(episodeId: string, server?: StreamingServers, category?: 'sub' | 'dub' | 'raw' | ('sub' | 'dub' | 'raw')[]): Promise<IExtendedSource>;
+    private selectServer;
     private extractSource;
 }
 export default Zoro;

@@ -621,77 +621,110 @@ class Zoro extends models_1.AnimeParser {
             try {
                 const servers = [];
                 const response = await this.client.get(`${this.baseUrl}/ajax/v2/episode/servers?episodeId=${episodeId}`);
+                // console.log('Raw response data:', response.data);
                 if (typeof response.data === 'object' && response.data.html) {
+                    // console.log('HTML content:', response.data.html);
                     const $ = (0, cheerio_1.load)(response.data.html);
-                    $(`.servers-${category} .server-item`).each((_, el) => {
-                        const server = $(el);
-                        servers.push({
-                            name: server.find('a').text().trim(),
-                            url: `${this.baseUrl}/ajax/v2/episode/sources?id=${server.attr('data-id')}`,
+                    // Check for all possible server categories
+                    const serverCategories = ['sub', 'dub', 'raw'];
+                    for (const cat of serverCategories) {
+                        $(`.servers-${cat} .server-item`).each((_, el) => {
+                            const server = $(el);
+                            servers.push({
+                                name: server.find('a').text().trim(),
+                                url: `${this.baseUrl}/ajax/v2/episode/sources?id=${server.attr('data-id')}`,
+                                category: cat,
+                            });
                         });
-                    });
+                    }
                 }
                 else {
+                    // console.log('Unexpected response format:', response.data);
                     throw new Error('Unexpected response format');
                 }
                 if (servers.length === 0) {
+                    // console.log('No servers found in HTML');
                     throw new Error(`No servers found for episode ${episodeId}`);
                 }
-                resolve(servers);
+                // Filter servers based on the requested category
+                const filteredServers = servers.filter(server => server.category === category);
+                if (filteredServers.length === 0) {
+                    console.log(`No servers found for category: ${category}`);
+                    // console.log('Available servers:', servers);
+                }
+                resolve(filteredServers.length > 0 ? filteredServers : servers);
             }
             catch (err) {
                 reject(new Error(`Failed to fetch episode servers: ${err.message}`));
             }
         });
     }
-    fetchEpisodeSources(episodeId, server = models_1.StreamingServers.VidStreaming, category = 'sub') {
+    fetchEpisodeSources(episodeId, server = models_1.StreamingServers.VidStreaming, category) {
         return new Promise(async (resolve, reject) => {
             try {
-                const servers = await this.fetchEpisodeServers(episodeId, category);
-                let selectedServer;
-                switch (server) {
-                    case models_1.StreamingServers.VidStreaming:
-                        selectedServer = servers.find(s => s.name === 'HD-1');
+                const categoriesToTry = category
+                    ? Array.isArray(category)
+                        ? category
+                        : [category]
+                    : ['sub', 'raw'];
+                let servers = [];
+                let selectedCategory;
+                for (const cat of categoriesToTry) {
+                    servers = await this.fetchEpisodeServers(episodeId, cat);
+                    if (servers.length > 0) {
+                        selectedCategory = cat;
                         break;
-                    case models_1.StreamingServers.VidCloud:
-                        selectedServer = servers.find(s => s.name === 'HD-2');
-                        break;
-                    case models_1.StreamingServers.StreamSB:
-                        selectedServer = servers.find(s => s.name === 'StreamSB');
-                        break;
-                    case models_1.StreamingServers.StreamTape:
-                        selectedServer = servers.find(s => s.name === 'StreamTape');
-                        break;
-                    default:
-                        selectedServer = servers.find(s => s.name === 'HD-1'); // Default to HD-1
+                    }
                 }
+                if (servers.length === 0) {
+                    throw new Error(`No servers found for episode ${episodeId}`);
+                }
+                // console.log(`Initially fetching servers for category: ${selectedCategory}`);
+                if (servers.filter(server => server.category === 'sub') && selectedCategory === 'sub') {
+                    // console.log("No 'sub' servers found, falling back to 'raw'");
+                    selectedCategory = 'raw';
+                    // console.log(`Now fetching servers for category: ${selectedCategory}`);
+                    servers = await this.fetchEpisodeServers(episodeId, selectedCategory);
+                }
+                if (servers.length === 0) {
+                    throw new Error(`No servers found for episode ${episodeId} in category ${selectedCategory}`);
+                }
+                // console.log(`Servers found for category: ${selectedCategory}`);
+                // console.log('Available servers:', servers);
+                let selectedServer = this.selectServer(servers, server);
                 if (!selectedServer) {
-                    throw new Error(`Server ${server} not found`);
+                    throw new Error(`Server ${server} not found in category ${selectedCategory}`);
                 }
+                // console.log(`Selected server: ${selectedServer.name} (${selectedServer.category})`);
                 const { data } = await this.client.get(selectedServer.url);
                 if (!data.link) {
                     throw new Error('No source link found');
                 }
                 const source = await this.extractSource(data.link, server);
-                // Add server name to the source
                 source.server = selectedServer.name;
-                // Add quality information if available
-                if (data.quality) {
+                source.category = selectedCategory; // Add the category to the source object
+                // Add additional properties
+                if (data.quality)
                     source.quality = data.quality;
-                }
-                // Handle intro/outro information
-                if (data.intro) {
+                if (data.intro)
                     source.intro = data.intro;
-                }
-                if (data.outro) {
+                if (data.outro)
                     source.outro = data.outro;
-                }
                 resolve(source);
             }
             catch (err) {
                 reject(new Error(`Failed to fetch episode sources: ${err.message}`));
             }
         });
+    }
+    selectServer(servers, preferredServer) {
+        const serverMap = {
+            [models_1.StreamingServers.VidStreaming]: 'HD-1',
+            [models_1.StreamingServers.VidCloud]: 'HD-2',
+            [models_1.StreamingServers.StreamSB]: 'StreamSB',
+            [models_1.StreamingServers.StreamTape]: 'StreamTape',
+        };
+        return servers.find(s => s.name === serverMap[preferredServer]) || servers[0];
     }
     async extractSource(url, server) {
         const serverUrl = new URL(url);
@@ -724,13 +757,13 @@ class Zoro extends models_1.AnimeParser {
 (async () => {
     try {
         const zoro = new Zoro();
-        const episodeId = '230';
-        const categories = ['sub', 'dub'];
+        const episodeId = '128728';
+        const categories = ['sub'];
         for (const category of categories) {
-            console.log(`\nTesting ${category.toUpperCase()} version:`);
-            console.log(`Fetching servers for episode ID: ${episodeId}`);
-            const servers = await zoro.fetchEpisodeServers(episodeId, category);
-            console.log('Episode servers:', servers);
+            // console.log(`\nTesting ${category.toUpperCase()} version:`);
+            // console.log(`Fetching servers for episode ID: ${episodeId}`);
+            // const servers = await zoro.fetchEpisodeServers(episodeId, category);
+            // console.log('Episode servers:', servers);
             console.log(`\nFetching sources for episode ID: ${episodeId}`);
             const sources = await zoro.fetchEpisodeSources(episodeId, models_1.StreamingServers.VidStreaming, category);
             console.log('Episode sources:', JSON.stringify(sources, null, 2));
