@@ -725,62 +725,81 @@ class Zoro extends AnimeParser {
   override fetchEpisodeSources(
     episodeId: string,
     server: StreamingServers = StreamingServers.VidStreaming,
-    category: 'sub' | 'dub' | 'raw' = 'sub'
+    category?: 'sub' | 'dub' | 'raw'
   ): Promise<ISource> {
     return new Promise(async (resolve, reject) => {
-      try {
-        const servers = await this.fetchEpisodeServers(episodeId, category);
+      const categoriesToTry = category ? [category] : ['sub', 'raw'];
 
-        let selectedServer = this.selectServer(servers, server);
+      for (const cat of categoriesToTry) {
+        try {
+          const servers = await this.fetchEpisodeServers(episodeId, cat as 'sub' | 'raw');
 
-        if (!selectedServer) {
-          selectedServer = servers[0];
+          if (servers.length === 0) {
+            console.log(`No servers found for category: ${cat}`);
+            if (cat === 'sub' && !category) {
+              continue; // Try 'raw' category if 'sub' fails and no specific category was requested
+            } else {
+              throw new Error(`No servers found for category: ${cat}`);
+            }
+          }
+
+          // Fetch source for a specific server
+          let selectedServer = this.selectServer(servers, server);
+          if (!selectedServer) {
+            selectedServer = servers[0];
+          }
+
+          const { data } = await this.client.get(selectedServer.url);
+          if (!data.link) {
+            throw new Error(`No episode sources found for category: ${cat}`);
+          }
+
+          const source = await this.extractSource(data.link, server);
+          source.server = selectedServer.name;
+          source.category = cat as 'sub' | 'raw';
+          if (data.quality) source.quality = data.quality;
+          if (data.intro) source.intro = data.intro;
+          if (data.outro) source.outro = data.outro;
+
+          return resolve(source as ISource);
+        } catch (err) {
+          if (cat === 'raw' || category) {
+            return reject(err);
+          }
+          // If 'sub' category fails and no specific category was requested, the loop will continue to try 'raw'
         }
-
-        const { data } = await this.client.get(selectedServer.url);
-
-        if (!data.link) {
-          throw new Error(`No episode sources found for category: ${category}`);
-        }
-
-        const source = await this.extractSource(data.link, server);
-        source.server = selectedServer.name;
-        source.category = category;
-
-        if (data.quality) source.quality = data.quality;
-        if (data.intro) source.intro = data.intro;
-        if (data.outro) source.outro = data.outro;
-
-        resolve(source as ISource);
-      } catch (err) {
-        reject(err);
       }
+
+      reject(new Error('No episode sources found'));
     });
   }
 
   private selectServer(
     servers: IExtendedEpisodeServer[],
-    preferredServer: StreamingServers
+    preferredServer: StreamingServers | string
   ): IExtendedEpisodeServer | undefined {
-    const serverMap: { [key in StreamingServers]?: string } = {
+    const serverMap: { [key: string]: string } = {
       [StreamingServers.VidStreaming]: 'HD-1',
       [StreamingServers.VidCloud]: 'HD-2',
       [StreamingServers.StreamSB]: 'StreamSB',
       [StreamingServers.StreamTape]: 'StreamTape',
     };
 
-    return servers.find(s => s.name === serverMap[preferredServer]) || servers[0];
+    return servers.find(s => s.name === (serverMap[preferredServer] || preferredServer)) || servers[0];
   }
 
-  private async extractSource(url: string, server: StreamingServers): Promise<IExtendedSource> {
+  private async extractSource(url: string, server: StreamingServers | string): Promise<IExtendedSource> {
     const serverUrl = new URL(url);
     switch (server) {
       case StreamingServers.VidStreaming:
       case StreamingServers.VidCloud:
+      case 'HD-1':
+      case 'HD-2':
         return {
           ...(await new MegaCloud().extract(serverUrl)),
         };
       case StreamingServers.StreamSB:
+      case 'StreamSB':
         return {
           headers: {
             Referer: serverUrl.href,
@@ -790,6 +809,7 @@ class Zoro extends AnimeParser {
           sources: await new StreamSB(this.proxyConfig, this.adapter).extract(serverUrl, true),
         };
       case StreamingServers.StreamTape:
+      case 'StreamTape':
         return {
           headers: { Referer: serverUrl.href, 'User-Agent': USER_AGENT },
           sources: await new StreamTape(this.proxyConfig, this.adapter).extract(serverUrl),
@@ -805,10 +825,10 @@ class Zoro extends AnimeParser {
   try {
     const zoro = new Zoro();
     const episodeId = '128728';
-    const category = 'raw';
+    const category = 'sub';
 
     console.log(`\nFetching sources for episode ID: ${episodeId}`);
-    const sources = await zoro.fetchEpisodeSources(episodeId, StreamingServers.VidStreaming, category);
+    const sources = await zoro.fetchEpisodeSources(episodeId);
     console.log('Episode sources:', JSON.stringify(sources, null, 2));
   } catch (error) {
     console.error('Error:', (error as Error).message);

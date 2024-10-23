@@ -645,32 +645,49 @@ class Zoro extends models_1.AnimeParser {
             }
         });
     }
-    fetchEpisodeSources(episodeId, server = models_1.StreamingServers.VidStreaming, category = 'sub') {
+    fetchEpisodeSources(episodeId, server = models_1.StreamingServers.VidStreaming, category) {
         return new Promise(async (resolve, reject) => {
-            try {
-                const servers = await this.fetchEpisodeServers(episodeId, category);
-                let selectedServer = this.selectServer(servers, server);
-                if (!selectedServer) {
-                    selectedServer = servers[0];
+            const categoriesToTry = category ? [category] : ['sub', 'raw'];
+            for (const cat of categoriesToTry) {
+                try {
+                    const servers = await this.fetchEpisodeServers(episodeId, cat);
+                    if (servers.length === 0) {
+                        console.log(`No servers found for category: ${cat}`);
+                        if (cat === 'sub' && !category) {
+                            continue; // Try 'raw' category if 'sub' fails and no specific category was requested
+                        }
+                        else {
+                            throw new Error(`No servers found for category: ${cat}`);
+                        }
+                    }
+                    // Fetch source for a specific server
+                    let selectedServer = this.selectServer(servers, server);
+                    if (!selectedServer) {
+                        selectedServer = servers[0];
+                    }
+                    const { data } = await this.client.get(selectedServer.url);
+                    if (!data.link) {
+                        throw new Error(`No episode sources found for category: ${cat}`);
+                    }
+                    const source = await this.extractSource(data.link, server);
+                    source.server = selectedServer.name;
+                    source.category = cat;
+                    if (data.quality)
+                        source.quality = data.quality;
+                    if (data.intro)
+                        source.intro = data.intro;
+                    if (data.outro)
+                        source.outro = data.outro;
+                    return resolve(source);
                 }
-                const { data } = await this.client.get(selectedServer.url);
-                if (!data.link) {
-                    throw new Error(`No episode sources found for category: ${category}`);
+                catch (err) {
+                    if (cat === 'raw' || category) {
+                        return reject(err);
+                    }
+                    // If 'sub' category fails and no specific category was requested, the loop will continue to try 'raw'
                 }
-                const source = await this.extractSource(data.link, server);
-                source.server = selectedServer.name;
-                source.category = category;
-                if (data.quality)
-                    source.quality = data.quality;
-                if (data.intro)
-                    source.intro = data.intro;
-                if (data.outro)
-                    source.outro = data.outro;
-                resolve(source);
             }
-            catch (err) {
-                reject(err);
-            }
+            reject(new Error('No episode sources found'));
         });
     }
     selectServer(servers, preferredServer) {
@@ -680,17 +697,20 @@ class Zoro extends models_1.AnimeParser {
             [models_1.StreamingServers.StreamSB]: 'StreamSB',
             [models_1.StreamingServers.StreamTape]: 'StreamTape',
         };
-        return servers.find(s => s.name === serverMap[preferredServer]) || servers[0];
+        return servers.find(s => s.name === (serverMap[preferredServer] || preferredServer)) || servers[0];
     }
     async extractSource(url, server) {
         const serverUrl = new URL(url);
         switch (server) {
             case models_1.StreamingServers.VidStreaming:
             case models_1.StreamingServers.VidCloud:
+            case 'HD-1':
+            case 'HD-2':
                 return {
                     ...(await new utils_1.MegaCloud().extract(serverUrl)),
                 };
             case models_1.StreamingServers.StreamSB:
+            case 'StreamSB':
                 return {
                     headers: {
                         Referer: serverUrl.href,
@@ -700,6 +720,7 @@ class Zoro extends models_1.AnimeParser {
                     sources: await new utils_1.StreamSB(this.proxyConfig, this.adapter).extract(serverUrl, true),
                 };
             case models_1.StreamingServers.StreamTape:
+            case 'StreamTape':
                 return {
                     headers: { Referer: serverUrl.href, 'User-Agent': utils_1.USER_AGENT },
                     sources: await new utils_1.StreamTape(this.proxyConfig, this.adapter).extract(serverUrl),
@@ -714,9 +735,9 @@ class Zoro extends models_1.AnimeParser {
     try {
         const zoro = new Zoro();
         const episodeId = '128728';
-        const category = 'raw';
+        const category = 'sub';
         console.log(`\nFetching sources for episode ID: ${episodeId}`);
-        const sources = await zoro.fetchEpisodeSources(episodeId, models_1.StreamingServers.VidStreaming, category);
+        const sources = await zoro.fetchEpisodeSources(episodeId);
         console.log('Episode sources:', JSON.stringify(sources, null, 2));
     }
     catch (error) {
