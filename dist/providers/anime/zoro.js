@@ -731,18 +731,18 @@ class Zoro extends models_1.AnimeParser {
     }
 }
 // Test function
-(async () => {
-    try {
-        const zoro = new Zoro();
-        const episodeId = '12865';
-        const category = 'sub';
-        console.log(`\nFetching sources for episode ID: ${episodeId}`);
-        const sources = await zoro.fetchEpisodeSources(episodeId, undefined, category);
-        console.log('Episode sources:', JSON.stringify(sources, null, 2));
-    }
-    catch (error) {
-        console.error('Error:', error.message);
-    }
-})();
+//command: npx ts-node src/providers/anime/zoro.ts
+// (async () => {
+//   try {
+//     const zoro = new Zoro();
+//     const episodeId = '12865';
+//     const category = 'sub';
+//     console.log(`\nFetching sources for episode ID: ${episodeId}`);
+//     const sources = await zoro.fetchEpisodeSources(episodeId, undefined, category);
+//     console.log('Episode sources:', JSON.stringify(sources, null, 2));
+//   } catch (error) {
+//     console.error('Error:', (error as Error).message);
+//   }
+// })();
 exports.default = Zoro;
 //# sourceMappingURL=zoro.js.map
